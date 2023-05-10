@@ -8,6 +8,11 @@ allow for a series of code reviews of interdependent code.
 
 spr is pronounced /ˈsuːpəɹ/, like the English word 'super'.
 
+## Changes specific to `github.com/aristanetworks/cordspr`
+
+Rename executable to `cspr`.  There are several "stacked pull request" tools in existence;
+change the name to avoid at least some conflicts ("c" for "cord").
+
 ## Documentation
 
 Comprehensive documentation is available here: https://getcord.github.io/spr/
