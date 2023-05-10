@@ -22,6 +22,11 @@ in the `[spr]` section.
 
 Change the default from `true` to `false`.
 
+#### addReviewedBy
+
+Add a configuration setting to control adding `Reviewed-By` trailers to commit messages.
+Change the default from `true` to `false`.
+
 ## Documentation
 
 Comprehensive documentation is available here: https://getcord.github.io/spr/
