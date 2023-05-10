@@ -8,6 +8,25 @@ allow for a series of code reviews of interdependent code.
 
 spr is pronounced /ˈsuːpəɹ/, like the English word 'super'.
 
+## Changes specific to `github.com/aristanetworks/cordspr`
+
+Rename executable to `cspr`.  There are several "stacked pull request" tools in existence;
+change the name to avoid at least some conflicts ("c" for "cord").
+
+### Configuration
+
+There are several changes and additions to the configuration settings stored in `.git/config`
+in the `[spr]` section.
+
+#### requireTestPlan
+
+Change the default from `true` to `false`.
+
+#### addReviewedBy
+
+Add a configuration setting to control adding `Reviewed-By` trailers to commit messages.
+Change the default from `true` to `false`.
+
 ## Documentation
 
 Comprehensive documentation is available here: https://getcord.github.io/spr/
