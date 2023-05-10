@@ -481,12 +481,12 @@ async fn diff_impl(
 
     let mut github_commit_message = opts.message.clone();
     if pull_request.is_some() && github_commit_message.is_none() {
-        let input = {
+        let mut input = {
             let message_on_prompt = message_on_prompt.clone();
 
             tokio::task::spawn_blocking(move || {
                 dialoguer::Input::<String>::new()
-                    .with_prompt("Message (leave empty to abort)")
+                    .with_prompt("Message (ABORT to abort)")
                     .with_initial_text(message_on_prompt)
                     .allow_empty(true)
                     .interact_text()
@@ -494,8 +494,11 @@ async fn diff_impl(
             .await??
         };
 
-        if input.is_empty() {
+        if input.eq("ABORT") {
             return Err(Error::new("Aborted as per user request".to_string()));
+        }
+        if input.is_empty() {
+            input = "No description".to_string()
         }
 
         *message_on_prompt = input.clone();
