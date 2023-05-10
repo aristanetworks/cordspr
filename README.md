@@ -36,6 +36,21 @@ Change the default from `true` to `false`.
 Add a configuration setting to automatically set `--update-message` when updating changes.
 The default is `true`, which makes the git commit message and title the source of truth.
 
+#### addSprBannerComment
+
+Add a configuration setting to enable/disable adding `[spr]` and `Created by spr X.Y.Z`
+comments to generated commits.  Other comment fragments are preserved, such as `Initial commit`,
+though the initial letters are uppercase, so they read slightly better without the banner text.
+
+Change the default from `true` to `false`.
+
+#### addSkipCiComment
+
+Add a configuration setting to enable/disable adding `[skip ci]` to the initial generated commit
+for a PR.
+
+Change the default from `true` to `false`.
+
 ## Documentation
 
 Comprehensive documentation is available here: https://getcord.github.io/spr/

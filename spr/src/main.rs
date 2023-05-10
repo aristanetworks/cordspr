@@ -143,6 +143,14 @@ pub async fn spr() -> Result<()> {
         .get_bool("spr.autoUpdateMessage")
         .ok()
         .unwrap_or(true);
+    let add_spr_banner_comment = git_config
+        .get_bool("spr.addSprBannerComment")
+        .ok()
+        .unwrap_or(false);
+    let add_skip_ci_comment = git_config
+        .get_bool("spr.addSkipCiComment")
+        .ok()
+        .unwrap_or(false);
 
     let config = spr::config::Config::new(
         github_owner,
@@ -154,6 +162,8 @@ pub async fn spr() -> Result<()> {
         require_test_plan,
         add_reviewed_by,
         auto_update_message,
+        add_spr_banner_comment,
+        add_skip_ci_comment,
     );
 
     let git = spr::git::Git::new(repo);

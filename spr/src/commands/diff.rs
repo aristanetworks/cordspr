@@ -450,20 +450,31 @@ async fn diff_impl(
             parents.push(master_base_oid);
         }
 
+        let mut message =
+            if pull_request.is_some() {
+                "Changes introduced through rebase".to_string()
+            } else {
+                format!(
+                    "Changes to {} this commit is based on",
+                    config.master_ref.branch_name()
+                )
+            };
+        if config.add_spr_banner_comment {
+            message = format!(
+                "[spr] {}\n\nCreated using spr {}",
+                message, env!("CARGO_PKG_VERSION"),
+            );
+        }
+        if config.add_skip_ci_comment {
+            message = format!(
+                "{}\n\n[skip ci]",
+                message,
+            );
+        }
+
         let new_base_branch_commit = git.create_derived_commit(
             local_commit.parent_oid,
-            &format!(
-                "[𝘀𝗽𝗿] {}\n\nCreated using spr {}\n\n[skip ci]",
-                if pull_request.is_some() {
-                    "changes introduced through rebase".to_string()
-                } else {
-                    format!(
-                        "changes to {} this commit is based on",
-                        config.master_ref.branch_name()
-                    )
-                },
-                env!("CARGO_PKG_VERSION"),
-            ),
+            &message,
             new_base_tree,
             &parents[..],
         )?;
@@ -523,16 +534,26 @@ async fn diff_impl(
     }
 
     // Create the new commit
-    let pr_commit = git.create_derived_commit(
-        local_commit.oid,
-        &format!(
+    let pr_commit_message = if config.add_spr_banner_comment {
+        format!(
             "{}\n\nCreated using spr {}",
             github_commit_message
                 .as_ref()
                 .map(|s| &s[..])
                 .unwrap_or("[𝘀𝗽𝗿] initial version"),
             env!("CARGO_PKG_VERSION"),
-        ),
+        )
+    } else {
+        github_commit_message
+            .as_ref()
+            .map(|s| &s[..])
+            .unwrap_or("Initial version")
+            .to_string()
+    };
+
+    let pr_commit = git.create_derived_commit(
+        local_commit.oid,
+        &pr_commit_message,
         new_head_tree,
         &pr_commit_parents[..],
     )?;

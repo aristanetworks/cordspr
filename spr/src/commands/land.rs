@@ -203,12 +203,18 @@ pub async fn land(
             // Here comes the additional merge-in-master commit on the Pull
             // Request branch that achieves that!
 
-            pr_head_oid = git.create_derived_commit(
-                pr_head_oid,
-                &format!(
+            let pr_head_oid_message = if config.add_spr_banner_comment {
+                format!(
                     "[𝘀𝗽𝗿] landed version\n\nCreated using spr {}",
                     env!("CARGO_PKG_VERSION"),
-                ),
+                )
+            } else {
+                "Landed".to_string()
+            };
+
+            pr_head_oid = git.create_derived_commit(
+                pr_head_oid,
+                &pr_head_oid_message,
                 our_tree_oid,
                 &[pr_head_oid, current_master],
             )?;
