@@ -26,27 +26,49 @@ pub enum MessageSection {
 pub fn message_section_label(section: &MessageSection) -> &'static str {
     use MessageSection::*;
 
+    // Temporary remedial adjustments to be somewhat compatible with git trailers
+
+    // match section {
+    //     Title => "Title",
+    //     Summary => "Summary",
+    //     TestPlan => "Test Plan",
+    //     Reviewers => "Reviewers",
+    //     ReviewedBy => "Reviewed By",
+    //     PullRequest => "Pull Request",
+    // }
     match section {
         Title => "Title",
         Summary => "Summary",
-        TestPlan => "Test Plan",
+        TestPlan => "Test-Plan",
         Reviewers => "Reviewers",
-        ReviewedBy => "Reviewed By",
-        PullRequest => "Pull Request",
+        ReviewedBy => "Reviewed-By",
+        PullRequest => "Pull-Request",
     }
 }
 
 pub fn message_section_by_label(label: &str) -> Option<MessageSection> {
     use MessageSection::*;
 
-    match &label.to_ascii_lowercase()[..] {
-        "title" => Some(Title),
-        "summary" => Some(Summary),
-        "test plan" => Some(TestPlan),
-        "reviewer" => Some(Reviewers),
-        "reviewers" => Some(Reviewers),
-        "reviewed by" => Some(ReviewedBy),
-        "pull request" => Some(PullRequest),
+    // Temporary remedial adjustments to be somewhat compatible with git trailers
+
+    // match &label.to_ascii_lowercase()[..] {
+    //     "title" => Some(Title),
+    //     "summary" => Some(Summary),
+    //     "test plan" => Some(TestPlan),
+    //     "reviewer" => Some(Reviewers),
+    //     "reviewers" => Some(Reviewers),
+    //     "reviewed by" => Some(ReviewedBy),
+    //     "pull request" => Some(PullRequest),
+    //     _ => None,
+    // }
+    match label {
+        "Title" => Some(Title),
+        "Summary" => Some(Summary),
+        "Test-Plan" => Some(TestPlan),
+        "Reviewer" => Some(Reviewers),
+        "Reviewers" => Some(Reviewers),
+        "Reviewed-By" => Some(ReviewedBy),
+        "Pull-Request" => Some(PullRequest),
         _ => None,
     }
 }
@@ -55,7 +77,8 @@ pub fn parse_message(
     msg: &str,
     top_section: MessageSection,
 ) -> MessageSectionsMap {
-    let regex = lazy_regex::regex!(r#"^\s*([\w\s]+?)\s*:\s*(.*)$"#);
+    // let regex = lazy_regex::regex!(r#"^\s*([\w\s]+?)\s*:\s*(.*)$"#);
+    let regex = lazy_regex::regex!(r#"^\s*([\w\s-]+?)\s*:\s*(.*)$"#);
 
     let mut section = top_section;
     let mut lines_in_section = Vec::<&str>::new();
@@ -290,14 +313,25 @@ mod tests {
     fn test_parse_sections() {
         assert_eq!(
             parse_message(
-                r#"Hello
+// Was:
+//                 r#"Hello
+//
+// Test plan: testzzz
+//
+// Summary:
+// here is
+// the
+// summary (it's not a "Test plan:"!)
+//
+// Reviewer:    a, b, c"#,
+r#"Hello
 
-Test plan: testzzz
+Test-Plan: testzzz
 
 Summary:
 here is
 the
-summary (it's not a "Test plan:"!)
+summary (it's not a "Test-Plan:"!)
 
 Reviewer:    a, b, c"#,
                 MessageSection::Title
@@ -306,7 +340,8 @@ Reviewer:    a, b, c"#,
                 (MessageSection::Title, "Hello".to_string()),
                 (
                     MessageSection::Summary,
-                    "here is\nthe\nsummary (it's not a \"Test plan:\"!)"
+                    // "here is\nthe\nsummary (it's not a \"Test plan:\"!)"
+                    "here is\nthe\nsummary (it's not a \"Test-Plan:\"!)"
                         .to_string()
                 ),
                 (MessageSection::TestPlan, "testzzz".to_string()),

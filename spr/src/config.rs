@@ -18,6 +18,10 @@ pub struct Config {
     pub branch_prefix: String,
     pub require_approval: bool,
     pub require_test_plan: bool,
+    pub add_reviewed_by: bool,
+    pub auto_update_message: bool,
+    pub add_spr_banner_comment: bool,
+    pub add_skip_ci_comment: bool,
 }
 
 impl Config {
@@ -29,6 +33,10 @@ impl Config {
         branch_prefix: String,
         require_approval: bool,
         require_test_plan: bool,
+        add_reviewed_by: bool,
+        auto_update_message: bool,
+        add_spr_banner_comment: bool,
+        add_skip_ci_comment: bool,
     ) -> Self {
         let master_ref = GitHubBranch::new_from_branch_name(
             &master_branch,
@@ -43,6 +51,10 @@ impl Config {
             branch_prefix,
             require_approval,
             require_test_plan,
+            add_reviewed_by,
+            auto_update_message,
+            add_spr_banner_comment,
+            add_skip_ci_comment,
         }
     }
 
@@ -155,6 +167,10 @@ mod tests {
             "master".into(),
             "spr/foo/".into(),
             false,
+            true,
+            true,
+            false,
+            true,
             true,
         )
     }
