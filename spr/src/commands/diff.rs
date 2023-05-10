@@ -143,6 +143,8 @@ async fn diff_impl(
     // Parsed commit message of the local commit
     let message = &mut local_commit.message;
 
+    let update_message = opts.update_message || config.auto_update_message;
+
     // Check if the local commit is based directly on the master branch.
     let directly_based_on_master = local_commit.parent_oid == master_base_oid;
 
@@ -193,7 +195,7 @@ async fn diff_impl(
         )?;
     }
 
-    if local_commit.pull_request_number.is_none() || opts.update_message {
+    if local_commit.pull_request_number.is_none() || update_message {
         validate_commit_message(message, config)?;
     }
 
@@ -205,7 +207,7 @@ async fn diff_impl(
             )));
         }
 
-        if !opts.update_message {
+        if !update_message {
             let mut pull_request_updates: PullRequestUpdate =
                 Default::default();
             pull_request_updates.update_message(pull_request, message);
@@ -347,7 +349,7 @@ async fn diff_impl(
             // Request branch and base are all the right ones.
             output("✅", "No update necessary")?;
 
-            if opts.update_message {
+            if update_message {
                 // However, the user requested to update the commit message on
                 // GitHub
 
@@ -481,12 +483,12 @@ async fn diff_impl(
 
     let mut github_commit_message = opts.message.clone();
     if pull_request.is_some() && github_commit_message.is_none() {
-        let input = {
+        let mut input = {
             let message_on_prompt = message_on_prompt.clone();
 
             tokio::task::spawn_blocking(move || {
                 dialoguer::Input::<String>::new()
-                    .with_prompt("Message (leave empty to abort)")
+                    .with_prompt("Message (ABORT to abort)")
                     .with_initial_text(message_on_prompt)
                     .allow_empty(true)
                     .interact_text()
@@ -494,8 +496,11 @@ async fn diff_impl(
             .await??
         };
 
-        if input.is_empty() {
+        if input.eq("ABORT") {
             return Err(Error::new("Aborted as per user request".to_string()));
+        }
+        if input.is_empty() {
+            input = "No description".to_string()
         }
 
         *message_on_prompt = input.clone();
@@ -564,7 +569,7 @@ async fn diff_impl(
         // Things we want to update in the Pull Request on GitHub
         let mut pull_request_updates: PullRequestUpdate = Default::default();
 
-        if opts.update_message {
+        if update_message {
             pull_request_updates.update_message(&pull_request, message);
         }
 
