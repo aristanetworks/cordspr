@@ -9,6 +9,10 @@ license = "MIT"
 edition = "2021"
 exclude = [".github", ".gitignore"]
 
+[[bin]]
+name = "cspr"
+path = "src/main.rs"
+
 [dependencies]
 clap = { version = "^3.2.6", features = ["derive", "wrap_help"] }
 console = "^0.15.0"
