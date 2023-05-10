@@ -10,7 +10,24 @@ spr is pronounced /ˈsuːpəɹ/, like the English word 'super'.
 
 ## Changes specific to `github.com/aristanetworks/cordspr`
 
-### Miscellaneous
+### Breaking Changes
+
+#### Commit Trailers
+
+Change the names of sections added to commits, to be more like git commit trailers.
+At a minimum, there cannot be whitespace within a trailer token, so replace whitespaces with
+dashes (`-`).
+
+It also appears that trailer tokens are case-sensitive, so don't accept lowercase equivalents
+when "parsing" the commit message.
+
+**NOTE** The commit trailer / commit section handling is brittle; only minor changes were
+made to the code while still evaluating the suitability of the tool.  Ideally, git tooling
+(e.g. using `git interpret-trailers`) should be used for fetching and updating them.
+That being said, a "test plan" doesn't really seem to be the kind of thing to put into a
+commit trailer...
+
+#### Miscellaneous
 
 - Rename executable to `cspr`.  There are several "stacked pull request" tools in existence;
 change the name to avoid at least some conflicts ("c" for "cord").
