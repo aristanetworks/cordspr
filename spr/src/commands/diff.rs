@@ -143,6 +143,8 @@ async fn diff_impl(
     // Parsed commit message of the local commit
     let message = &mut local_commit.message;
 
+    let update_message = opts.update_message || config.auto_update_message;
+
     // Check if the local commit is based directly on the master branch.
     let directly_based_on_master = local_commit.parent_oid == master_base_oid;
 
@@ -193,7 +195,7 @@ async fn diff_impl(
         )?;
     }
 
-    if local_commit.pull_request_number.is_none() || opts.update_message {
+    if local_commit.pull_request_number.is_none() || update_message {
         validate_commit_message(message, config)?;
     }
 
@@ -205,7 +207,7 @@ async fn diff_impl(
             )));
         }
 
-        if !opts.update_message {
+        if !update_message {
             let mut pull_request_updates: PullRequestUpdate =
                 Default::default();
             pull_request_updates.update_message(pull_request, message);
@@ -347,7 +349,7 @@ async fn diff_impl(
             // Request branch and base are all the right ones.
             output("✅", "No update necessary")?;
 
-            if opts.update_message {
+            if update_message {
                 // However, the user requested to update the commit message on
                 // GitHub
 
@@ -567,7 +569,7 @@ async fn diff_impl(
         // Things we want to update in the Pull Request on GitHub
         let mut pull_request_updates: PullRequestUpdate = Default::default();
 
-        if opts.update_message {
+        if update_message {
             pull_request_updates.update_message(&pull_request, message);
         }
 

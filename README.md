@@ -31,6 +31,11 @@ Change the default from `true` to `false`.
 Add a configuration setting to control adding `Reviewed-By` trailers to commit messages.
 Change the default from `true` to `false`.
 
+#### autoUpdateMessage
+
+Add a configuration setting to automatically set `--update-message` when updating changes.
+The default is `true`, which makes the git commit message and title the source of truth.
+
 ## Documentation
 
 Comprehensive documentation is available here: https://getcord.github.io/spr/

@@ -139,6 +139,10 @@ pub async fn spr() -> Result<()> {
         .get_bool("spr.addReviewedBy")
         .ok()
         .unwrap_or(false);
+    let auto_update_message = git_config
+        .get_bool("spr.autoUpdateMessage")
+        .ok()
+        .unwrap_or(true);
 
     let config = spr::config::Config::new(
         github_owner,
@@ -149,6 +153,7 @@ pub async fn spr() -> Result<()> {
         require_approval,
         require_test_plan,
         add_reviewed_by,
+        auto_update_message,
     );
 
     let git = spr::git::Git::new(repo);
