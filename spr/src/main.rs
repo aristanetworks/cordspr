@@ -134,7 +134,11 @@ pub async fn spr() -> Result<()> {
     let require_test_plan = git_config
         .get_bool("spr.requireTestPlan")
         .ok()
-        .unwrap_or(true);
+        .unwrap_or(false);
+    let add_reviewed_by = git_config
+        .get_bool("spr.addReviewedBy")
+        .ok()
+        .unwrap_or(false);
 
     let config = spr::config::Config::new(
         github_owner,
@@ -144,6 +148,7 @@ pub async fn spr() -> Result<()> {
         branch_prefix,
         require_approval,
         require_test_plan,
+        add_reviewed_by,
     );
 
     let git = spr::git::Git::new(repo);
