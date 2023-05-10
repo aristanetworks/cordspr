@@ -15,6 +15,7 @@ use crate::{
     output::{output, write_commit_title},
     utils::run_command,
 };
+use crate::message::MessageSection;
 
 #[derive(Debug, clap::Parser)]
 pub struct LandOptions {
@@ -202,12 +203,18 @@ pub async fn land(
             // Here comes the additional merge-in-master commit on the Pull
             // Request branch that achieves that!
 
-            pr_head_oid = git.create_derived_commit(
-                pr_head_oid,
-                &format!(
+            let pr_head_oid_message = if config.add_spr_banner_comment {
+                format!(
                     "[𝘀𝗽𝗿] landed version\n\nCreated using spr {}",
                     env!("CARGO_PKG_VERSION"),
-                ),
+                )
+            } else {
+                "Landed".to_string()
+            };
+
+            pr_head_oid = git.create_derived_commit(
+                pr_head_oid,
+                &pr_head_oid_message,
                 our_tree_oid,
                 &[pr_head_oid, current_master],
             )?;
@@ -303,12 +310,25 @@ pub async fn land(
             // used a base branch with this Pull Request or not. We have made sure the
             // target of the Pull Request is set to the master branch. So let GitHub do
             // the merge now!
+
+            let mut with_title = pull_request.title.clone();
+            let mut with_message_from_body = pull_request.sections;
+            if config.auto_update_message {
+                with_title = match prepared_commit.message.get(&MessageSection::Title) {
+                    Some(title) => title.clone(),
+                    None => return Err(Error::new("Commit message is missing a title."))
+                };
+                with_message_from_body = prepared_commit.message.clone();
+            };
+            let with_message =
+                build_github_body_for_merging(&with_message_from_body);
+
             octocrab::instance()
                 .pulls(&config.owner, &config.repo)
                 .merge(pull_request_number)
                 .method(octocrab::params::pulls::MergeMethod::Squash)
-                .title(pull_request.title)
-                .message(build_github_body_for_merging(&pull_request.sections))
+                .title(with_title)
+                .message(with_message)
                 .sha(format!("{}", pr_head_oid))
                 .send()
                 .await
