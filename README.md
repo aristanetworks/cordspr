@@ -10,8 +10,12 @@ spr is pronounced /ˈsuːpəɹ/, like the English word 'super'.
 
 ## Changes specific to `github.com/aristanetworks/cordspr`
 
-Rename executable to `cspr`.  There are several "stacked pull request" tools in existence;
+### Miscellaneous
+
+- Rename executable to `cspr`.  There are several "stacked pull request" tools in existence;
 change the name to avoid at least some conflicts ("c" for "cord").
+- When summarizing diffs, require the user to enter `ABORT` instead of ampty string to abort.
+Change message to "No description" if none is entered.
 
 ### Configuration
 
