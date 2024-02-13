@@ -1,3 +1,4 @@
+
 ![spr](./docs/spr.svg)
 
 # spr &middot; [![GitHub](https://img.shields.io/github/license/getcord/spr)](https://img.shields.io/github/license/getcord/spr) [![GitHub release](https://img.shields.io/github/v/release/getcord/spr?include_prereleases)](https://github.com/getcord/spr/releases) [![crates.io](https://img.shields.io/crates/v/spr.svg)](https://crates.io/crates/spr) [![homebrew](https://img.shields.io/homebrew/v/spr.svg)](https://formulae.brew.sh/formula/spr) [![GitHub Repo stars](https://img.shields.io/github/stars/getcord/spr?style=social)](https://github.com/getcord/spr)
@@ -21,11 +22,52 @@ dashes (`-`).
 It also appears that trailer tokens are case-sensitive, so don't accept lowercase equivalents
 when "parsing" the commit message.
 
-**NOTE** The commit trailer / commit section handling is brittle; only minor changes were
-made to the code while still evaluating the suitability of the tool.  Ideally, git tooling
-(e.g. using `git interpret-trailers`) should be used for fetching and updating them.
-That being said, a "test plan" doesn't really seem to be the kind of thing to put into a
-commit trailer...
+##### Trailer-Safety
+
+`cspr` is now trailer-safe. In the original implementation, the message was parsed using an
+_ad hoc_ logic that was not compliant with official git commit trailers syntax, as defined in
+https://git-scm.com/docs/git-interpret-trailers
+
+The original logic parsed the message in terms of "sections" starting with a pattern like
+ `{key}: ...`.", and completely and silently discarded sections that were not known to `spr`.
+ This caused all kinds of problems like:
+
+- Subject lines starting with `{something>}: ...` were discarded;
+- Lines in the body starting with `{something>}: ..` were discarded (e.g. `https://...`);
+- All commit trailers not known to `spr` (e.g. , `Fixes: ..`) were discarded.
+
+Also, the commit messages were re-written in a manner that was not compliant with the
+official git trailers syntax, where trailers must be grouped in the last paragaprh of the message,
+multi-line trailers must be indented and so on.
+
+##### Behavior Changes
+
+We fixed the problems described above by making both the message parsing and re-writing
+logic compliant with the official git trailers syntax. This however breaks with the previous behavior
+in the following manner:
+
+- The **entire** body (i.e. excluding message subject and all trailers) is now treated as what
+  previously the "Summary" section.
+
+  _Notice_: we no longer require or discard the `Summary:` section "header" (which was anyway
+   strangely discarded when `spr` re-wrote the message.)
+
+- All other known sections (e.g., `Test-Plan:`, `Reviewers:`, etc.)
+  **MUST now adhere to the official trailers syntax**, which means:
+
+  - There must be no spaces before the trailer keys;
+
+  - They must be grouped in the last paragraph of the message. I.e., if they're not in the last
+    paragraph, they're treated as part  of the summary section;
+
+  - In multi-line trailers, the subsequent lines must be indented  by at least one space;
+
+- Trailers unknown to spr are no longer discarded when the messag is rewritten.
+
+**NOTICE**: the official trailer syntax is not very user-friendly for manual edition (e.g.
+a extra blank line bettwen trailers causes git not to treat the lines before the blank
+line as trailers), so it can be error prone. Be careful and make sure to dobule-check
+the messages after using spr (e.g. after `cspr diff`).
 
 #### Miscellaneous
 
