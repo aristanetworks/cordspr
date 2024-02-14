@@ -99,7 +99,7 @@ fn message_section_is_trailer(section: &MessageSection) -> bool {
 pub fn parse_message(
     orig_msg: &str,
     top_section: MessageSection,
-) -> MessageSectionsMap {
+) -> Result<MessageSectionsMap> {
 
     let msg = orig_msg.trim();
 
@@ -107,7 +107,7 @@ pub fn parse_message(
 
     // Parse the commit message and populate the sections map based on
     // what was required. First, the title and summary.
-    let cmsg = parse_commit_message(msg);
+    let cmsg = parse_commit_message(msg)?;
 
     if top_section == MessageSection::Title {
         sections.insert(MessageSection::Title, cmsg.subject);
@@ -157,7 +157,7 @@ pub fn parse_message(
         sections.insert(MessageSection::ExtraTrailers, extra_trailers);
     }
 
-    sections
+    Ok(sections)
 }
 
 /// Render a trailer section
@@ -307,10 +307,19 @@ mod tests {
     // Note this useful idiom: importing names from outer (for mod tests) scope.
     use super::*;
 
+    fn must_parse(
+        msg: &str,
+        top_section: MessageSection,
+    ) -> MessageSectionsMap {
+        let sections = parse_message(msg, top_section);
+        assert!(sections.is_ok(), "commit message parse error: msg={:?} error={:?}", msg, sections);
+        sections.unwrap()
+    }
+
     #[test]
     fn test_parse_empty() {
         assert_eq!(
-            parse_message("", MessageSection::Title),
+            must_parse("", MessageSection::Title),
             [(MessageSection::Title, "".to_string())].into()
         );
     }
@@ -318,15 +327,15 @@ mod tests {
     #[test]
     fn test_parse_title() {
         assert_eq!(
-            parse_message("Hello", MessageSection::Title),
+            must_parse("Hello", MessageSection::Title),
             [(MessageSection::Title, "Hello".to_string())].into()
         );
         assert_eq!(
-            parse_message("Hello\n", MessageSection::Title),
+            must_parse("Hello\n", MessageSection::Title),
             [(MessageSection::Title, "Hello".to_string())].into()
         );
         assert_eq!(
-            parse_message("\n\nHello\n\n", MessageSection::Title),
+            must_parse("\n\nHello\n\n", MessageSection::Title),
             [(MessageSection::Title, "Hello".to_string())].into()
         );
     }
@@ -334,7 +343,7 @@ mod tests {
     #[test]
     fn test_parse_title_and_summary() {
         assert_eq!(
-            parse_message("Hello\nFoo Bar", MessageSection::Title),
+            must_parse("Hello\nFoo Bar", MessageSection::Title),
             [
                 (MessageSection::Title, "Hello".to_string()),
                 (MessageSection::Summary, "Foo Bar".to_string())
@@ -342,7 +351,7 @@ mod tests {
             .into()
         );
         assert_eq!(
-            parse_message("Hello\n\nFoo Bar", MessageSection::Title),
+            must_parse("Hello\n\nFoo Bar", MessageSection::Title),
             [
                 (MessageSection::Title, "Hello".to_string()),
                 (MessageSection::Summary, "Foo Bar".to_string())
@@ -350,7 +359,7 @@ mod tests {
             .into()
         );
         assert_eq!(
-            parse_message("Hello\n\n\nFoo Bar", MessageSection::Title),
+            must_parse("Hello\n\n\nFoo Bar", MessageSection::Title),
             [
                 (MessageSection::Title, "Hello".to_string()),
                 (MessageSection::Summary, "Foo Bar".to_string())
@@ -358,7 +367,7 @@ mod tests {
             .into()
         );
         assert_eq!(
-            parse_message("Hello\n\nFoo Bar", MessageSection::Title),
+            must_parse("Hello\n\nFoo Bar", MessageSection::Title),
             [
                 (MessageSection::Title, "Hello".to_string()),
                 (MessageSection::Summary, "Foo Bar".to_string())
@@ -370,7 +379,7 @@ mod tests {
     #[test]
     fn test_parse_sections() {
         assert_eq!(
-            parse_message(
+            must_parse(
 // Was:
 //                 r#"Hello
 //
@@ -384,7 +393,7 @@ mod tests {
 // Reviewer:    a, b, c"#,
 r#"Hello
 
-Here is
+here is
 the
 summary (it's not a "Test-Plan:"!)
 
@@ -398,7 +407,7 @@ Reviewers:    a, b, c
                 (
                     MessageSection::Summary,
                     // "here is\nthe\nsummary (it's not a \"Test plan:\"!)"
-                    "Here is\nthe\nsummary (it's not a \"Test-Plan:\"!)"
+                    "here is\nthe\nsummary (it's not a \"Test-Plan:\"!)"
                         .to_string()
                 ),
                 (MessageSection::TestPlan, "testzzz".to_string()),
@@ -415,7 +424,7 @@ Reviewers:    a, b, c
     fn test_build_message_just_title() {
         assert_eq!(
             build_message(
-                &parse_message(
+                &must_parse(
                     r#"test: just title
 
 "#,
@@ -436,7 +445,7 @@ Reviewers:    a, b, c
     fn test_build_message_just_title_and_summary() {
         assert_eq!(
             build_message(
-                &parse_message(
+                &must_parse(
                     r#"Just title and summary
 
 Notice: not a trailer
@@ -465,7 +474,7 @@ More summary here
     fn test_build_message_no_blank_between_title_and_summary() {
         assert_eq!(
             build_message(
-                &parse_message(
+                &must_parse(
                     r#"No blank line between title and summary
 Summary"#,
                     MessageSection::Title,
@@ -487,7 +496,7 @@ Summary
     fn test_build_message_just_title_and_known_trailer() {
         assert_eq!(
             build_message(
-                &parse_message(
+                &must_parse(
                     r#"Just title and known trailer
 
  Test-Plan: foobar
@@ -512,12 +521,13 @@ Test-Plan: foobar
     fn test_build_message_title_summary_known_trailers() {
         assert_eq!(
             build_commit_message(
-                &parse_message(
+                &must_parse(
                     r#"test: title, summary and regular sections
 
 Summary: not a trailer
 
- http://example.com/foo
+http://example.com/foo2
+  http://example.com/foo1
 
 Reviewers: a, b, c
 Test-Plan: Foo
@@ -532,7 +542,8 @@ Test-Plan: Foo
 
 Summary: not a trailer
 
- http://example.com/foo
+http://example.com/foo2
+  http://example.com/foo1
 
 Test-Plan: Foo Bar Baz
 Reviewers: a, b, c
@@ -545,7 +556,7 @@ Reviewers: a, b, c
     fn test_build_message_with_extra_trailers() {
         assert_eq!(
             build_commit_message(
-                &parse_message(
+                &must_parse(
                     r#"Title, summary, regular sections, extra sections
 
 Summary
@@ -584,7 +595,7 @@ Extra2: extra2
     fn test_build_message_with_just_summary() {
         assert_eq!(
             build_message(
-                &parse_message(
+                &must_parse(
                     r#"Title will not show up in built message
 
 Summary: not a trailer

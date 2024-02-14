@@ -28,7 +28,11 @@ impl CommitMessage {
     pub fn render(&self) -> String {
         let mut ret: String = "".to_string();
 
-        ret.push_str(&format!("{}\n", &self.subject));
+        if self.subject.len() == 0 {
+            ret.push_str("MISSING COMMIT MESSAGE SUBJECT!\n");
+        } else {
+            ret.push_str(&format!("{}\n", &self.subject));
+        }
 
         if self.body.len() > 0 {
            ret.push_str(&format!("\n{}\n", &self.body));
@@ -50,7 +54,7 @@ impl CommitMessage {
 /// Parse the contents of a git commit message into a CommitMessage instance.
 pub fn parse_commit_message(
     orig_msg: &str,
-) -> CommitMessage {
+) -> Result<CommitMessage> {
 
     // Get rid of trailing empty/blank lines and replace all CRLFs with
     // just LFs upfront to simplify parsing logic.
@@ -60,7 +64,7 @@ pub fn parse_commit_message(
 
     // Parse trailers using the 'git interpret-trailers --parse` command
     // into a trailer map.
-    let trailers = parse_trailers(msg);
+    let trailers = parse_trailers(msg)?;
 
     // Use 1st line as the message subject and the rest as the first version
     // of the body. The trailers paragraph, if present, will be later removed
@@ -82,7 +86,7 @@ pub fn parse_commit_message(
     if trailers.len() > 0 {
         let v: Vec<&str> = body.rsplitn(2, "\n\n").collect();
         if v.len() > 1 {
-            // rsplitn() gets the split parst in reverse order, i.e. last part
+            // rsplitn() gets the split parts in reverse order, i.e. last part
             // first, so we need to use v[1] to get the body.
             body = v[1].to_string();
         }
@@ -91,11 +95,11 @@ pub fn parse_commit_message(
     // Remove body's heading/trailing empty/blank lines.
     body = body.trim().to_string();
 
-    CommitMessage {
+    Ok(CommitMessage {
         subject: subject,
         body: body,
         trailers: trailers,
-    }
+    })
 }
 
 /// Parse the commit message trailers using 'git interpret-trailers --parse'
@@ -149,21 +153,17 @@ fn parse_raw_trailers(
 
 fn parse_trailers(
      msg: &str,
-) -> TrailerMap {
+) -> Result<TrailerMap> {
 
     // Parse trailers using the 'git interpret-trailers --parse` command
     // and convert the results into a trailer map.
-    let raw_trailers = parse_raw_trailers(msg.trim_end());
-    if let Err(e) = raw_trailers {
-        panic!("error parsing trailers: err={}", e);
-    }
+    let raw_trailers = parse_raw_trailers(msg.trim_end())?;
 
     let regex = lazy_regex::regex!(r#"([\ws\s-]+?):\s*(.*)$"#);
 
     let mut trailers = TrailerMap::new();
 
     for line in raw_trailers
-        .unwrap()
         .trim()
         .split('\n')
         .map(|line| line.trim_end())
@@ -175,14 +175,12 @@ fn parse_trailers(
             if let Some(vec) = trailers.get_mut(&k) {
                 vec.push(v.clone())
             } else {
-                let mut vec = Vec::<String>::new();
-                vec.push(v.clone());
-                trailers.insert(k.clone(), vec);
+                trailers.insert(k.clone(), vec![v.clone()]);
             }
         }
     }
 
-    trailers
+    Ok(trailers)
 }
 
 // =====================================================================
@@ -200,10 +198,16 @@ mod test {
     // -------------------------------------------------
     // parse_commit_message() tests
 
+    fn must_parse(msg: &str) -> CommitMessage {
+        let cm = parse_commit_message(msg);
+        assert!(cm.is_ok(), "commit message parse error: msg={:?} error={:?}", msg, cm);
+        cm.unwrap()
+    }
+
     #[test]
     fn test_parse_just_subject() {
         assert_eq!(
-            parse_commit_message("Just subject"),
+            must_parse("Just subject"),
             CommitMessage {
                 subject: s("Just subject"),
                 body: s(""),
@@ -212,7 +216,7 @@ mod test {
         );
 
         assert_eq!(
-            parse_commit_message("Just subject with newline\n"),
+            must_parse("Just subject with newline\n"),
             CommitMessage {
                 subject: s("Just subject with newline"),
                 body: s(""),
@@ -224,7 +228,7 @@ mod test {
     #[test]
     fn test_parse_no_newline_before_body() {
         assert_eq!(
-            parse_commit_message("No newline before body\nThe body"),
+            must_parse("No newline before body\nThe body"),
             CommitMessage {
                 subject: s("No newline before body"),
                 body: s("The body"),
@@ -236,7 +240,7 @@ mod test {
     #[test]
     fn test_parse_subject_and_body() {
         assert_eq!(
-            parse_commit_message("Subject and body\n\nThe body\nparts"),
+            must_parse("Subject and body\n\nThe body\nparts"),
             CommitMessage {
                 subject: s("Subject and body"),
                 body: s("The body\nparts"),
@@ -248,7 +252,7 @@ mod test {
     #[test]
     fn test_parse_subject_and_body_with_paragraphs() {
         assert_eq!(
-            parse_commit_message(r#"Body with paragraphs
+            must_parse(r#"Body with paragraphs
 
 Paragraph1
 ends here.
@@ -279,7 +283,7 @@ ends here."#),
     #[test]
     fn test_parse_single_line_trailers() {
         assert_eq!(
-            parse_commit_message(r#"Single line trailers
+            must_parse(r#"Single line trailers
 
 Paragraph1
 ends here.
@@ -302,7 +306,7 @@ Bar:     BAR1 BAR2
     #[test]
     fn test_parse_multi_line_trailers() {
         assert_eq!(
-            parse_commit_message(r#"Multi-line trailers
+            must_parse(r#"Multi-line trailers
 
 Body with list:
 
@@ -330,7 +334,7 @@ Bar:     BAR1
     #[test]
     fn test_parse_multiple_trailer_entries() {
         assert_eq!(
-            parse_commit_message(r#"Multiple trailer entries
+            must_parse(r#"Multiple trailer entries
 
 The body.
 
@@ -351,8 +355,48 @@ Bar: BAR3
         );
     }
 
+    #[test]
+    fn test_parse_with_incorrectly_placed_trailer() {
+        assert_eq!(
+            must_parse(r#"Incorrectly placed trailer
+
+The body.
+
+Incorrectly-placed-trailer: value
+
+Foo: FOO1
+Bar: BAR1 BAR2
+Foo: FOO2 FOO3
+Bar: BAR3
+
+"#),
+            CommitMessage {
+                subject: s("Incorrectly placed trailer"),
+                body: s(r#"The body.
+
+Incorrectly-placed-trailer: value"#),
+                trailers: TrailerMap::from( [
+                    ( s("Foo"), vec![ s("FOO1"), s("FOO2 FOO3") ] ),
+                    ( s("Bar"), vec![ s("BAR1 BAR2"), s("BAR3") ] ),
+                ] ),
+            },
+        );
+    }
+
     // -------------------------------------------------
     // CommitMessage.render() tests
+
+    #[test]
+    fn test_render_missing_subject() {
+        assert_eq!(
+            CommitMessage {
+                subject: s(""),
+                body: s(""),
+                trailers: TrailerMap::new(),
+            }.render(),
+            "MISSING COMMIT MESSAGE SUBJECT!\n",
+        );
+    }
 
     #[test]
     fn test_render_just_subject() {

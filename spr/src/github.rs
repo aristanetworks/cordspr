@@ -206,7 +206,7 @@ impl GitHub {
         let base_oid = git.resolve_reference(base.local())?;
         let head_oid = git.resolve_reference(head.local())?;
 
-        let mut sections = parse_message(&pr.body, MessageSection::Summary);
+        let mut sections = parse_message(&pr.body, MessageSection::Summary)?;
 
         let title = pr.title.trim().to_string();
         sections.insert(

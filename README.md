@@ -37,7 +37,7 @@ The original logic parsed the message in terms of "sections" starting with a pat
 - All commit trailers not known to `spr` (e.g. , `Fixes: ..`) were discarded.
 
 Also, the commit messages were re-written in a manner that was not compliant with the
-official git trailers syntax, where trailers must be grouped in the last paragaprh of the message,
+official git trailers syntax, where trailers must be grouped in the last paragraph of the message,
 multi-line trailers must be indented and so on.
 
 ##### Behavior Changes
@@ -60,13 +60,13 @@ in the following manner:
   - They must be grouped in the last paragraph of the message. I.e., if they're not in the last
     paragraph, they're treated as part  of the summary section;
 
-  - In multi-line trailers, the subsequent lines must be indented  by at least one space;
+  - In multi-line trailers, the subsequent lines must be indented by at least one space;
 
-- Trailers unknown to spr are no longer discarded when the messag is rewritten.
+- Trailers unknown to spr are no longer discarded when the message is rewritten.
 
-**NOTICE**: the official trailer syntax is not very user-friendly for manual edition (e.g.
+**NOTICE**: the official trailer syntax is not very user-friendly for manual editing (e.g.
 a extra blank line bettwen trailers causes git not to treat the lines before the blank
-line as trailers), so it can be error prone. Be careful and make sure to dobule-check
+line as trailers), so it can be error prone. Be careful and make sure to double-check
 the messages after using spr (e.g. after `cspr diff`).
 
 #### Miscellaneous
