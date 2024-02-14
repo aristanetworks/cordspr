@@ -292,7 +292,7 @@ impl Git {
         drop(commit);
         drop(repo);
 
-        let mut message = parse_message(&message, MessageSection::Title);
+        let mut message = parse_message(&message, MessageSection::Title)?;
 
         let pull_request_number = message
             .get(&MessageSection::PullRequest)
