@@ -13,3 +13,4 @@ pub mod github;
 pub mod message;
 pub mod output;
 pub mod utils;
+pub mod commit_message;
