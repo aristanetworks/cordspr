@@ -160,46 +160,87 @@ pub fn parse_message(
     Ok(sections)
 }
 
-pub fn build_message(
-    section_texts: &MessageSectionsMap,
-    sections: &[MessageSection],
-) -> String {
-    let mut result = String::new();
-    let mut display_label = false;
+/// Render a trailer section
+///
+/// If the trailer value has more than one line, the subsequent lines are
+/// indented by a spaces, as described in https://git-scm.com/docs/git-interpret-trailers
+fn render_trailer_section(section: &MessageSection, text: String) -> String {
 
-    for section in sections {
-        let value = section_texts.get(section);
-        if let Some(text) = value {
-            if !result.is_empty() {
-                result.push('\n');
-            }
+    let mut ret = String::new();
 
-            if section != &MessageSection::Title
-                && section != &MessageSection::Summary
-            {
-                // Once we encounter a section that's neither Title nor Summary,
-                // we start displaying the labels.
-                display_label = true;
-            }
-
-            if display_label {
-                let label = message_section_label(section);
-                result.push_str(label);
-                result.push_str(
-                    if label.len() + text.len() > 76 || text.contains('\n') {
-                        ":\n"
-                    } else {
-                        ": "
-                    },
-                );
-            }
-
-            result.push_str(text);
-            result.push('\n');
+    for (i, line) in text
+        .split('\n')
+        .enumerate()
+    {
+        if i == 0 {
+            let label = message_section_label(section);
+            ret.push_str(&format!("{}: {}\n", label, line));
+        } else {
+            ret.push_str(&format!(" {}\n", line));
         }
     }
 
-    result
+    ret
+}
+
+pub fn build_message(
+    section_texts: &MessageSectionsMap,
+    desired_sections: &[MessageSection],
+) -> String {
+    let mut ret = String::new();
+    let mut trailers = MessageSectionsMap::new();
+
+    // Look only for the desired sections.
+    for section in desired_sections {
+        let value = section_texts.get(section);
+        if value.is_none() {
+            continue;
+        }
+        let text = value.unwrap();
+
+        // If section is a trailer, just store it. We'll add
+        // all trailers at the end of the message.
+        if message_section_is_trailer(section) {
+            let rendered_text = render_trailer_section(section, text.to_string());
+            trailers.insert(*section, rendered_text);
+            continue;
+        }
+
+        // Not a trailer, so it should be either the title or the summary.
+        if section != &MessageSection::Title && section != &MessageSection::Summary {
+            panic!("unexpected non-trailer section: {:?}", section);
+        }
+
+        // Section has no text, nothing to do here.
+        if text.len() == 0 {
+            continue;
+        }
+
+        // Add blank line separating previous "section" if needed.
+        if ret.len() > 0 {
+            ret.push_str("\n\n");
+        }
+        ret.push_str(text);
+    }
+
+    // Add extra blank line to separate the trailers paragraph.
+    ret.push_str("\n\n");
+
+    // Add known section trailers, if any.
+    for (_, rendered_text) in &trailers {
+        ret.push_str(&rendered_text);
+    }
+
+    // Add extra trailers, if any.
+    if let Some(text) = section_texts.get(&MessageSection::ExtraTrailers) {
+        ret.push_str(text);
+    }
+
+    // Make sure to keep just a single newline at the end of the message.
+    ret = ret.trim_end().to_string();
+    ret.push('\n');
+
+    ret
 }
 
 pub fn build_commit_message(section_texts: &MessageSectionsMap) -> String {
@@ -375,4 +416,211 @@ Reviewers:    a, b, c
             .into()
         );
     }
+
+    // -----------------------------------------------------------------
+    // build_message*() tests
+
+    #[test]
+    fn test_build_message_just_title() {
+        assert_eq!(
+            build_message(
+                &must_parse(
+                    r#"test: just title
+
+"#,
+                    MessageSection::Title,
+                ),
+                &[
+                    MessageSection::Title,
+                    MessageSection::Summary,
+                ],
+            ),
+
+            "test: just title\n"
+        );
+    }
+
+    // -------------------------------------------------
+    #[test]
+    fn test_build_message_just_title_and_summary() {
+        assert_eq!(
+            build_message(
+                &must_parse(
+                    r#"Just title and summary
+
+Notice: not a trailer
+
+More summary here
+
+"#,
+                    MessageSection::Title,
+                ),
+                &[
+                    MessageSection::Title,
+                    MessageSection::Summary,
+                ],
+            ),
+            r#"Just title and summary
+
+Notice: not a trailer
+
+More summary here
+"#,
+        );
+    }
+
+    // -------------------------------------------------
+    #[test]
+    fn test_build_message_no_blank_between_title_and_summary() {
+        assert_eq!(
+            build_message(
+                &must_parse(
+                    r#"No blank line between title and summary
+Summary"#,
+                    MessageSection::Title,
+                ),
+                &[
+                    MessageSection::Title,
+                    MessageSection::Summary,
+                ],
+            ),
+            r#"No blank line between title and summary
+
+Summary
+"#,
+        );
+    }
+
+    // -------------------------------------------------
+    #[test]
+    fn test_build_message_just_title_and_known_trailer() {
+        assert_eq!(
+            build_message(
+                &must_parse(
+                    r#"Just title and known trailer
+
+ Test-Plan: foobar
+"#,
+                    MessageSection::Title,
+                ),
+                &[
+                    MessageSection::Title,
+                    MessageSection::Summary,
+                    MessageSection::TestPlan,
+                ],
+            ),
+            r#"Just title and known trailer
+
+Test-Plan: foobar
+"#,
+        );
+    }
+
+    // -------------------------------------------------
+    #[test]
+    fn test_build_message_title_summary_known_trailers() {
+        assert_eq!(
+            build_commit_message(
+                &must_parse(
+                    r#"test: title, summary and regular sections
+
+Summary: not a trailer
+
+http://example.com/foo2
+  http://example.com/foo1
+
+Reviewers: a, b, c
+Test-Plan: Foo
+ Bar
+ Baz
+
+"#,
+                    MessageSection::Title,
+                ),
+            ),
+            r#"test: title, summary and regular sections
+
+Summary: not a trailer
+
+http://example.com/foo2
+  http://example.com/foo1
+
+Test-Plan: Foo Bar Baz
+Reviewers: a, b, c
+"#,
+        );
+    }
+
+    // -------------------------------------------------
+    #[test]
+    fn test_build_message_with_extra_trailers() {
+        assert_eq!(
+            build_commit_message(
+                &must_parse(
+                    r#"Title, summary, regular sections, extra sections
+
+Summary
+
+Notice: not a trailer
+
+Extra1: extra1
+Extra2: extra2
+Reviewers: a, b, c
+Test-Plan: Foo
+ Bar
+ Baz
+
+"#,
+                    MessageSection::Title,
+                ),
+            ),
+            r#"Title, summary, regular sections, extra sections
+
+Summary
+
+Notice: not a trailer
+
+Test-Plan: Foo Bar Baz
+Reviewers: a, b, c
+Extra1: extra1
+Extra2: extra2
+"#,
+        );
+    }
+
+    // -------------------------------------------------
+    // Build message requesting just summary: make sure
+    // unknown trailers are still included.
+    #[test]
+    fn test_build_message_with_just_summary() {
+        assert_eq!(
+            build_message(
+                &must_parse(
+                    r#"Title will not show up in built message
+
+Summary: not a trailer
+
+ http://example.com/foo
+
+Reviewers: a, b, c
+Test-Plan: Foo
+ Bar
+ Baz
+Extra-Trailer: extra trailer must not be discarded
+"#,
+                    MessageSection::Title,
+                ),
+                &[
+                    MessageSection::Summary,  // <<< just summary requested
+                ],
+            ),
+            r#"Summary: not a trailer
+
+ http://example.com/foo
+
+Extra-Trailer: extra trailer must not be discarded
+"#,
+        );
+    }
+
 }
